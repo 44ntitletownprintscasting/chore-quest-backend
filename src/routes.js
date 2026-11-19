@@ -12,6 +12,7 @@
  *                                    (kidId = cached kid id, or first name on
  *                                    a fresh device — resolved case-insensitively)
  *   POST /api/auth/signout
+ *   POST /api/auth/parent-by-pin  {pin} (kid session + PIN -> parent session)
  *   GET  /api/state
  *   POST /api/kids                (parent; trial/free plan: 1 kid max)
  *   DELETE /api/kids/:id          (parent)
@@ -151,6 +152,25 @@ router.post('/auth/signout', auth.requireAuth, (req, res) => {
   const match = header.match(/^Bearer\s+(.+)$/i);
   if (match) db.deleteSessionByToken(match[1].trim());
   return res.json({ ok: true });
+});
+
+// A kid session that passes the parent PIN becomes a parent session, so the
+// parent view opened from the kid side (Grown-Ups) can actually approve,
+// pay out, and edit. The PIN is the parent gate on a kid's device —
+// verifying it alone only opens the view; the session role is what the
+// parent-only endpoints check.
+router.post('/auth/parent-by-pin', auth.requireAuth, (req, res) => {
+  const { pin } = req.body || {};
+  if (typeof pin !== 'string' || !/^\d{4}$/.test(pin)) {
+    return badRequest(res, 'A PIN is 4 digits.');
+  }
+  const family = db.getFamilyById(req.session.familyId);
+  if (!family.pin_hash) return res.status(403).json({ error: 'No parent PIN is set yet.' });
+  if (!auth.verifyPin(pin, family.pin_hash)) {
+    return res.status(403).json({ error: 'That PIN was not right.' });
+  }
+  const session = db.createSession({ familyId: family.id, role: 'parent' });
+  return res.json({ token: session.token });
 });
 
 // --- state --------------------------------------------------------------------
