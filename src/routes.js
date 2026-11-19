@@ -307,8 +307,10 @@ router.post('/chores/:id/start', auth.requireAuth, (req, res) => {
     return res.status(403).json({ error: 'That chore belongs to another child.' });
   }
   if (chore.status !== 'todo') return badRequest(res, 'This chore has already been started.');
-  // Starting earns a Starter Star (recorded; no prize yet).
+  // Starting earns a Starter Star (recorded; no prize yet) and moves the
+  // chore to 'started' — the kid side shows I DID IT only once started.
   const updated = db.updateChore(req.session.familyId, chore.id, {
+    status: 'started',
     starter_star: 1,
     started_at: new Date().toISOString(),
   });
@@ -322,7 +324,7 @@ router.post('/chores/:id/done', auth.requireAuth, (req, res) => {
     return res.status(403).json({ error: 'That chore belongs to another child.' });
   }
   if (chore.status === 'pending') return res.json(db.publicChore(chore)); // already waiting
-  if (chore.status !== 'todo') return badRequest(res, 'This chore is not waiting to be done.');
+  if (chore.status !== 'started') return badRequest(res, 'Start this chore first, then tap I DID IT.');
   const updated = db.updateChore(req.session.familyId, chore.id, { status: 'pending' });
   return res.json(db.publicChore(updated));
 });
