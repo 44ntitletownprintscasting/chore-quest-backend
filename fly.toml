@@ -1,0 +1,30 @@
+# Fly.io configuration — smallest shared-cpu machine (256MB, ~$2/month).
+# See DEPLOY.md for the deploy commands. If the app name is taken,
+# change it here and in DEPLOY.md.
+app = 'chore-quest-backend'
+primary_region = 'ord' # Chicago — closest region to Green Bay, WI
+
+[env]
+  PORT = '8080'
+  NODE_ENV = 'production'
+  DATABASE_PATH = '/data/chore-quest.db'
+  PLAY_PACKAGE_NAME = 'com.playmadecreations.chorequest'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false # keep awake so the app always reaches it
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['app']
+
+[[vm]]
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 256
+
+# Persistent SQLite storage. Create the volume first:
+#   fly volumes create chore_quest_data --size 1 --region ord
+[[mounts]]
+  source = 'chore_quest_data'
+  destination = '/data'
